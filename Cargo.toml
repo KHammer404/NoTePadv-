@@ -1,0 +1,14 @@
+[package]
+name = "notepad"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk4 = "0.9"
+libadwaita = "0.7"
+rusqlite = { version = "0.32", features = ["bundled"] }
+dirs = "5"
+ashpd = "0.9"
+futures-lite = "2"
+ureq = { version = "2", features = ["json"] }
+serde_json = "1"
