@@ -209,14 +209,10 @@ fn build_ui(app: &Application, listener: Option<UnixListener>) {
     });
     window.add_controller(key_controller);
 
-    // Focus lost handler
-    let focus_handler = save_and_hide.clone();
-    let focus_state = state.clone();
+    // Focus lost: just hide, keep text
     window.connect_is_active_notify(move |w| {
         if !w.is_active() && w.is_visible() {
-            if *focus_state.borrow() != AppState::AiWaiting {
-                focus_handler();
-            }
+            w.set_visible(false);
         }
     });
 
