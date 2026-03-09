@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 
 use gtk4::prelude::*;
-use gtk4::{glib, Application, ApplicationWindow, TextView, CssProvider};
+use gtk4::{glib, Application, ApplicationWindow, TextView, CssProvider, ScrolledWindow};
 
 use crate::ai::AiClient;
 use crate::db::Database;
@@ -17,6 +17,7 @@ enum AppState {
     ApiKeyInput,
     AiWaiting,
     AiResult,
+    Archive,
 }
 
 pub fn run(listener: UnixListener) -> Result<(), Box<dyn std::error::Error>> {
@@ -58,6 +59,7 @@ fn build_ui(app: &Application, listener: Option<UnixListener>) {
     let css = CssProvider::new();
     css.load_from_data(
         "window { background-color: rgba(25, 25, 25, 0.9); border-radius: 12px; }
+         scrolledwindow { background-color: transparent; }
          textview { background-color: transparent; color: #dcdcdc; padding: 16px; }
          textview text { background-color: transparent; }"
     );
@@ -71,9 +73,12 @@ fn build_ui(app: &Application, listener: Option<UnixListener>) {
     let text_view = TextView::builder()
         .wrap_mode(gtk4::WrapMode::Word)
         .build();
-    text_view.set_vexpand(true);
-    text_view.set_hexpand(true);
-    window.set_child(Some(&text_view));
+    let scrolled = ScrolledWindow::builder()
+        .child(&text_view)
+        .vexpand(true)
+        .hexpand(true)
+        .build();
+    window.set_child(Some(&scrolled));
 
     // State
     let state = Rc::new(RefCell::new(AppState::Input));
@@ -173,6 +178,28 @@ fn build_ui(app: &Application, listener: Option<UnixListener>) {
                     let end = buffer.end_iter();
                     buffer.place_cursor(&end);
                     *enter_state.borrow_mut() = AppState::ApiKeyInput;
+                    return glib::Propagation::Stop;
+                }
+
+                if trimmed == "/list" {
+                    let memos = enter_db.get_recent_memos(30).unwrap_or_default();
+                    if memos.is_empty() {
+                        buffer.set_text("저장된 메모가 없습니다.");
+                    } else {
+                        let mut display = String::new();
+                        for (content, created_at) in &memos {
+                            let date = if created_at.len() >= 16 {
+                                &created_at[5..16]
+                            } else {
+                                created_at.as_str()
+                            };
+                            display.push_str(&format!("[{}]\n{}\n\n", date, content));
+                        }
+                        buffer.set_text(display.trim_end());
+                    }
+                    enter_text_view.set_editable(false);
+                    enter_text_view.set_cursor_visible(false);
+                    *enter_state.borrow_mut() = AppState::Archive;
                     return glib::Propagation::Stop;
                 }
 
